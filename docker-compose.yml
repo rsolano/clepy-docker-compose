@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  db:
+    image: # Add image here
+  redis:
+    image: # Add image here
+  web:
+    build: .
+    command: # Add Django command here
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+  worker:
+    build: .
+    command: # Add Celery command here
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
