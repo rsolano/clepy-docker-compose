@@ -15,13 +15,13 @@ Clone command:
 
 `git clone https://github.com/rsolano/clepy-docker-compose`
 
-## Define an image to use as our Python runtime container.
+## 1. Define an image to use as our Python runtime container.
 
-Edit the Dockerfile so that it pulls from a Python image. You can use `python:3.7` here.
+Edit the `Dockerfile` so that it pulls from a Python image. You can use `python:3.7` here.
 
-## Define app services
+## 2. Define app services
 
-Edit the docker-compose.yml in order to define our app services:
+Edit the `docker-compose.yml` in order to define our app services:
 
 
 * `postgres` The database. Use the `postgres:alpine` image.
@@ -36,16 +36,20 @@ Edit the docker-compose.yml in order to define our app services:
 * `worker` Celery, our task worker. Use `celery -A tutorial worker -l info` as the `command` for the container to run.
 
 
-## Creating the Django project inside the container
+## 3. Create Django project inside the container
+
+Run:
 
 `docker-compose run web django-admin startproject tutorial .`
 
-## Start the application
+## 4. Start the application
 Run:
 
 `docker-compose up -d`
 
-### :warning: Docker Toolbox only
+The `-d` option runs the services in the background.
+
+### NOTE: Docker Toolbox only
 If you are using Docker Toolbox, you need to start the VM, note its IP address and add it to the `ALLOWED_HOSTS` property in `settings.py`. Use this IP instead of `localhost` to access the application.
 
 ```
@@ -55,14 +59,16 @@ docker-machine ip
 
 To view the application logs:
 
-`docker-compose logs`
+`docker-compose logs -f`
+
+The `-f` option follows the log output. 
 
 You can also specify which service(s) to display logs for:
 
-`docker-compose logs web worker`
+`docker-compose logs -f web worker`
 
 
-## Setting up the database with Django
+## 5. Set up the database in Django
 Edit the `tutorial/settings.py` file and modify the `DATABASES` section to point to our PostgreSQL instance.
 
 ```python
@@ -92,18 +98,22 @@ Switch to user `postgres`
 
 `su postgres`
 
-Use the `plsql` utility's `\dt` command to view the tables created by Django:
+Use the `psql` utility's `\dt` command to view the tables created by Django:
 ```
-plsql
+psql
 
 \dt
 ```
+
+To exit the utility enter `\q`.
+
+To exit the container enter `exit` twice.
 
 You can now delete the default `db.sqlite3` database file which comes with Django.
 
 The Django app should now be available at http://localhost:8000 at this point.
 
-## Configure Celery and create/run a task
+## 6. Configure Celery and create/run a task
 
 First, move the `celery.py` file provided into the `tutorial/` directory in order to set up Django to use Celery.
 
@@ -118,6 +128,15 @@ __all__ = ('celery_app',)
 Now create a Django app to hold our task logic:
 
 `docker-compose exec web python manage.py startapp myapp`
+
+Add the newly created app to the `INSTALLED_APPS` property in `settings.py`:
+
+```python
+INSTALLED_APPS = [
+    'myapp.apps.MyappConfig',
+    ...
+]
+```
 
 
 Create a `myapp/tasks.py` file with the following code:
@@ -145,7 +164,16 @@ To run the task, open a Django shell:
 
 `docker-compose exec web python manage.py shell`
 
+Import the task and invoke using `delay()` in order for Celery to run it:
+
 ```
 from myapp.tasks import *
 perform_lengthy_task.delay()
 ```
+
+The output should be an `AsyncResult` object which indicates the task was sent to Celery successfully.
+
+```bash
+<AsyncResult: 2dfd7bc5-c46c-4d21-ae23-46eebc933186>
+```
+
